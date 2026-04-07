@@ -1,10 +1,11 @@
 from sqlalchemy.orm import Session
 from app.db.models import Doctor, Slot, Appointment
+from sqlalchemy import func
 
 def book_appointment(db: Session, patient_name: str, specialization: str, time: str):
-    
+
     doctor = db.query(Doctor).filter(
-        Doctor.specialization == specialization
+        func.lower(Doctor.specialization) == specialization.lower()
     ).first()
 
     if not doctor:
