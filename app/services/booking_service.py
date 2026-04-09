@@ -37,3 +37,18 @@ def book_appointment(db: Session, patient_name: str, specialization: str, time: 
         "message": "Appointment booked",
         "appointment_id": appointment.id
     }
+
+def get_available_slots(db, specialization):
+    doctor = db.query(Doctor).filter(
+        func.lower(Doctor.specialization) == specialization.lower()
+    ).first()
+
+    if not doctor:
+        return []
+
+    slots = db.query(Slot).filter(
+        Slot.doctor_id == doctor.id,
+        Slot.is_available == True
+    ).all()
+
+    return [slot.time for slot in slots]
