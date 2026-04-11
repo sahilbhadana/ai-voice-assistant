@@ -38,7 +38,7 @@ def book_appointment(db: Session, patient_name: str, specialization: str, time: 
         "appointment_id": appointment.id
     }
 
-def get_available_slots(db, specialization):
+def get_available_slots(db, specialization, time_preference=None):
     doctor = db.query(Doctor).filter(
         func.lower(Doctor.specialization) == specialization.lower()
     ).first()
@@ -51,4 +51,40 @@ def get_available_slots(db, specialization):
         Slot.is_available == True
     ).all()
 
-    return [slot.time for slot in slots]
+    slot_times = [slot.time for slot in slots]
+    
+    # Filter based on time preference
+    if time_preference:
+        slot_times = filter_slots_by_preference(slot_times, time_preference)
+    
+    return slot_times
+
+
+def filter_slots_by_preference(slots, time_preference):
+    """
+    Filter slots based on user's time preference.
+    
+    Args:
+        slots: List of time strings (e.g., ["09:00", "10:00", "14:00"])
+        time_preference: "earliest_available", "any_time", "morning", "afternoon"
+    
+    Returns:
+        Filtered list of slots
+    """
+    if time_preference == "earliest_available":
+        # Return just the earliest slot
+        return [slots[0]] if slots else []
+    
+    elif time_preference == "any_time":
+        # Return all slots
+        return slots
+    
+    elif time_preference == "morning":
+        # Filter for 6:00 - 12:00
+        return [s for s in slots if 6 <= int(s.split(":")[0]) < 12]
+    
+    elif time_preference == "afternoon":
+        # Filter for 12:00 - 18:00
+        return [s for s in slots if 12 <= int(s.split(":")[0]) < 18]
+    
+    return slots

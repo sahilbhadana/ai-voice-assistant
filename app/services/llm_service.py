@@ -15,6 +15,7 @@ def extract_intent(text: str):
         Return JSON with keys:
         - intent
         - doctor_specialization
+        - time_preference (one of: "earliest_available", "any_time", "morning", "afternoon", null)
         - time
 
         If value is missing, use null
@@ -23,15 +24,23 @@ def extract_intent(text: str):
 
         Input: Book appointment
         Output:
-        {{"intent": "book_appointment", "doctor_specialization": null, "time": null}}
+        {{"intent": "book_appointment", "doctor_specialization": null, "time_preference": null, "time": null}}
 
         Input: Cardiologist
         Output:
-        {{"intent": null, "doctor_specialization": "cardiologist", "time": null}}
+        {{"intent": null, "doctor_specialization": "cardiologist", "time_preference": null, "time": null}}
+
+        Input: Morning
+        Output:
+        {{"intent": null, "doctor_specialization": null, "time_preference": "morning", "time": null}}
+
+        Input: Earliest available
+        Output:
+        {{"intent": null, "doctor_specialization": null, "time_preference": "earliest_available", "time": null}}
 
         Input: 10 AM
         Output:
-        {{"intent": null, "doctor_specialization": null, "time": "10:00"}}
+        {{"intent": null, "doctor_specialization": null, "time_preference": null, "time": "10:00"}}
 
         Now extract from:
         {text}

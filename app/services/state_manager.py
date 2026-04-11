@@ -6,6 +6,7 @@ def get_session(session_id):
         sessions[session_id] = {
             "intent": None,
             "doctor_specialization": None,
+            "time_preference": None,
             "time": None,
             "suggested_slots": None
         }
@@ -15,7 +16,7 @@ def get_session(session_id):
 def update_session(session_id, new_data):
     session = get_session(session_id)
 
-    for key in ["intent", "doctor_specialization", "time","suggested_slots"]:
+    for key in ["intent", "doctor_specialization", "time_preference", "time", "suggested_slots"]:
         value = new_data.get(key)
 
         # Only update if value is not None

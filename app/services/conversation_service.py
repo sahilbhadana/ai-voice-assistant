@@ -41,9 +41,17 @@ def handle_conversation(session_id, text, db):
     if not session.get("doctor_specialization"):
         return {"response": "Which doctor specialization do you need?"}
 
-    # Ask for time if missing
-    if not session.get("time"):
-        return {"response": "What time would you prefer?"}
+    # Ask for time preference if missing
+    if not session.get("time_preference") and not session.get("time"):
+        return {
+            "response": "How would you like to choose your appointment time?",
+            "options": ["earliest available", "any time", "morning", "afternoon"],
+            "follow_up": "Or specify a specific time like '10 AM'"
+        }
+
+    # Ask for specific time if preference is set but time not selected
+    if session.get("time_preference") and not session.get("time"):
+        return {"response": "Please select a specific time or confirm a suggestion."}
 
     # Step 5: Booking
     result = book_appointment(
@@ -58,7 +66,8 @@ def handle_conversation(session_id, text, db):
 
         available_slots = get_available_slots(
             db,
-            session["doctor_specialization"]
+            session["doctor_specialization"],
+            session.get("time_preference")
         )
 
         if available_slots:

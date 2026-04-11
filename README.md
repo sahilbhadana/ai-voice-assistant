@@ -60,6 +60,33 @@ The system leverages a local LLM to understand user intent, maintains conversati
 
 ---
 
+## ✅ Intelligent Time Preference Selection
+
+- Users can choose appointment times using smart preferences:
+  - **"earliest available"** → Books the earliest available slot
+  - **"morning"** → Filters slots between 6 AM - 12 PM
+  - **"afternoon"** → Filters slots between 12 PM - 6 PM
+  - **"any time"** → Shows all available slots
+
+- Example conversation:
+
+  ```
+  User: Book appointment with cardiologist
+  Bot: Which doctor specialization do you need?
+
+  User: Cardiologist
+  Bot: How would you like to choose your appointment time?
+       Options: earliest available, any time, morning, afternoon
+
+  User: Morning
+  Bot: Please select a specific time or confirm a suggestion.
+
+  User: 10:00
+  Bot: Your appointment is booked!
+  ```
+
+---
+
 ## ✅ Context-Aware Recovery
 
 - Stores suggested slots in session
@@ -76,6 +103,7 @@ The system leverages a local LLM to understand user intent, maintains conversati
   - appointments
 
 - Real-time validation of availability
+- Full schedule support (10 AM - 8 PM)
 
 ---
 
