@@ -1,6 +1,9 @@
 from app.services.llm_service import extract_intent
 from app.services.state_manager import get_session, update_session, clear_session
 from app.services.booking_service import book_appointment, get_available_slots
+from app.services.email_service import send_booking_confirmation
+from app.db.models import Patient
+from datetime import datetime
 
 
 def handle_conversation(session_id, text, db):
@@ -9,7 +12,27 @@ def handle_conversation(session_id, text, db):
     extracted = extract_intent(text)
     print("EXTRACTED:", extracted)
 
-    # Step 2: Normalize data (IMPORTANT)
+    # Step 2: Get or create session
+    session = get_session(session_id)
+
+    # Step 2a: Collect patient info if not already collected
+    if not session.get("patient_name"):
+        # First message - collect name
+        session["patient_name"] = text.strip()
+        update_session(session_id, {"patient_name": text.strip()})
+        return {"response": "Thank you! What's your email address?"}
+
+    if not session.get("patient_email"):
+        # Second message - collect email
+        patient_email = text.strip()
+        if "@" not in patient_email:
+            return {"response": "Please provide a valid email address."}
+        
+        session["patient_email"] = patient_email
+        update_session(session_id, {"patient_email": patient_email})
+        return {"response": "Great! Which doctor specialization do you need?"}
+
+    # Step 2b: Normalize specialization
     if extracted.get("doctor_specialization"):
         extracted["doctor_specialization"] = extracted["doctor_specialization"].lower()
 
@@ -56,7 +79,8 @@ def handle_conversation(session_id, text, db):
     # Step 5: Booking
     result = book_appointment(
         db,
-        patient_name="AI User",
+        patient_name=session["patient_name"],
+        patient_email=session["patient_email"],
         specialization=session["doctor_specialization"],
         time=session["time"]
     )
@@ -82,10 +106,24 @@ def handle_conversation(session_id, text, db):
                 "response": "No slots available for this doctor."
             }
 
-    # Step 7: Clear session after success
+    # Step 7: Send confirmation email
+    if result.get("appointment_id"):
+        appointment = result.get("appointment")
+        if appointment:
+            send_booking_confirmation(
+                patient_name=session["patient_name"],
+                patient_email=session["patient_email"],
+                doctor_name=appointment.get("doctor_name", "Dr. Name"),
+                appointment_date=appointment.get("appointment_date", "TBD"),
+                appointment_time=appointment.get("appointment_time", "TBD"),
+                location="Room TBD",
+                appointment_id=result.get("appointment_id")
+            )
+
+    # Step 8: Clear session after success
     clear_session(session_id)
 
     return {
-        "response": "Your appointment is booked!",
+        "response": "Your appointment is booked! A confirmation email has been sent to your address.",
         "booking_result": result
     }

@@ -1,9 +1,37 @@
 from sqlalchemy.orm import Session
-from app.db.models import Doctor, Slot, Appointment
+from app.db.models import Doctor, Slot, Appointment, Patient
 from sqlalchemy import func
+from datetime import datetime, timedelta
 
-def book_appointment(db: Session, patient_name: str, specialization: str, time: str):
+def book_appointment(db: Session, patient_name: str, patient_email: str, specialization: str, time: str):
+    """
+    Book an appointment for a patient.
+    
+    Args:
+        db: Database session
+        patient_name: Name of patient
+        patient_email: Email of patient
+        specialization: Doctor specialization
+        time: Appointment time (HH:MM)
+    
+    Returns:
+        Dictionary with appointment details or error
+    """
 
+    # Step 1: Get or create patient
+    patient = db.query(Patient).filter(Patient.email == patient_email).first()
+    
+    if not patient:
+        patient = Patient(
+            name=patient_name,
+            email=patient_email,
+            phone="N/A"  # Phone would be captured from caller ID in real system
+        )
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
+
+    # Step 2: Find doctor
     doctor = db.query(Doctor).filter(
         func.lower(Doctor.specialization) == specialization.lower()
     ).first()
@@ -11,6 +39,7 @@ def book_appointment(db: Session, patient_name: str, specialization: str, time: 
     if not doctor:
         return {"error": "No doctor found"}
 
+    # Step 3: Find available slot
     slot = db.query(Slot).filter(
         Slot.doctor_id == doctor.id,
         Slot.time == time,
@@ -20,13 +49,24 @@ def book_appointment(db: Session, patient_name: str, specialization: str, time: 
     if not slot:
         return {"error": "No slot available"}
 
-    # Book slot
+    # Step 4: Mark slot as unavailable
     slot.is_available = False
 
+    # Step 5: Create appointment (assuming today's date + some days ahead)
+    # In real system, this would be based on selected date
+    appointment_date = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+
     appointment = Appointment(
+        patient_id=patient.id,
         patient_name=patient_name,
+        patient_email=patient_email,
         doctor_id=doctor.id,
-        slot_id=slot.id
+        doctor_name=doctor.name,
+        slot_id=slot.id,
+        appointment_date=appointment_date,
+        appointment_time=time,
+        status="booked",
+        email_sent=False
     )
 
     db.add(appointment)
@@ -35,7 +75,14 @@ def book_appointment(db: Session, patient_name: str, specialization: str, time: 
 
     return {
         "message": "Appointment booked",
-        "appointment_id": appointment.id
+        "appointment_id": f"APT-{appointment.id}",
+        "appointment": {
+            "id": appointment.id,
+            "doctor_name": doctor.name,
+            "appointment_date": appointment_date,
+            "appointment_time": time,
+            "status": "booked"
+        }
     }
 
 def get_available_slots(db, specialization, time_preference=None):

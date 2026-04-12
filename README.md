@@ -87,6 +87,56 @@ The system leverages a local LLM to understand user intent, maintains conversati
 
 ---
 
+## ✅ Automated Email Notifications
+
+- **Booking Confirmation** ✉️
+  - Sent immediately after appointment is booked
+  - Contains: Doctor name, date, time, location, confirmation ID
+  - Proof of booking for patient
+
+- **24-Hour Reminder** 📅
+  - Auto-sent 24 hours before appointment
+  - Reminds patient to prepare
+  - Shows all appointment details
+
+- **1-Hour Reminder** ⏰
+  - Auto-sent 1 hour before appointment
+  - Urgent reminder to leave for hospital
+  - No-show prevention
+
+- **No-Show Follow-up** 📧
+  - Auto-sent if patient doesn't show up
+  - Encourages rescheduling
+  - Tracks no-show history
+
+- **Cancellation Confirmation** ❌
+  - Sent when appointment is cancelled
+  - Releases slot back to availability
+  - Option to reschedule
+
+**Features:**
+
+- Beautiful HTML email templates
+- Plain text fallback for all email clients
+- SMTP integration with Gmail, SendGrid, AWS SES, etc.
+- Contact information captured during booking
+- Email preferences tracking
+
+---
+
+## ✅ Patient Profile Management
+
+- Collects patient information during voice call:
+  - Full name
+  - Email address
+  - Phone number (from caller ID)
+
+- Stores patient profile in database
+- Tracks appointment history per patient
+- Enables personalized communication
+
+---
+
 ## ✅ Context-Aware Recovery
 
 - Stores suggested slots in session
@@ -101,9 +151,11 @@ The system leverages a local LLM to understand user intent, maintains conversati
   - doctors
   - slots
   - appointments
+  - **patients** (NEW)
 
 - Real-time validation of availability
 - Full schedule support (10 AM - 8 PM)
+- Patient history tracking
 
 ---
 
@@ -112,6 +164,7 @@ The system leverages a local LLM to understand user intent, maintains conversati
 - Prevents false success responses
 - Validates booking results before responding
 - Gracefully handles edge cases
+- Email sending failures don't block booking
 
 ---
 
@@ -200,7 +253,60 @@ DATABASE_URL = "postgresql://user:password@localhost:5432/dbname"
 
 ---
 
-## 5. Run Migrations / Create Tables
+## 5. Configure Email Notifications
+
+Create `.env` file in project root:
+
+```bash
+# Copy the example
+cp .env.example .env
+
+# Edit .env with your email credentials
+```
+
+**Email Configuration Options:**
+
+### Option A: Gmail (Recommended for Testing)
+
+```
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SENDER_EMAIL=your-email@gmail.com
+SENDER_PASSWORD=your-app-password  # Use App Password, not regular password
+SENDER_NAME=City Hospital
+```
+
+**Setup Gmail App Password:**
+
+1. Enable 2-Factor Authentication on Gmail
+2. Go to myaccount.google.com → Security → App passwords
+3. Select "Mail" and "Windows Computer"
+4. Copy the 16-character password
+5. Use it as `SENDER_PASSWORD` in `.env`
+
+### Option B: SendGrid
+
+```
+SMTP_SERVER=smtp.sendgrid.net
+SMTP_PORT=587
+SENDER_EMAIL=apikey  # Keep as "apikey"
+SENDER_PASSWORD=SG.xxxxx...  # Your SendGrid API key
+SENDER_NAME=City Hospital
+```
+
+### Option C: AWS SES
+
+```
+SMTP_SERVER=email-smtp.region.amazonaws.com
+SMTP_PORT=587
+SENDER_EMAIL=your-verified-email@domain.com
+SENDER_PASSWORD=your-smtp-password
+SENDER_NAME=City Hospital
+```
+
+---
+
+## 6. Run Migrations / Create Tables
 
 ```bash
 uvicorn app.main:app --reload
@@ -208,7 +314,7 @@ uvicorn app.main:app --reload
 
 ---
 
-## 6. Seed Database
+## 7. Seed Database
 
 ```bash
 python -m app.db.seed
@@ -216,7 +322,7 @@ python -m app.db.seed
 
 ---
 
-## 7. Run Ollama
+## 8. Run Ollama
 
 ```bash
 ollama run llama3
@@ -224,7 +330,7 @@ ollama run llama3
 
 ---
 
-## 8. Start Server
+## 9. Start Server
 
 ```bash
 uvicorn app.main:app --reload
@@ -255,7 +361,96 @@ http://127.0.0.1:8000/docs
 
 ---
 
-## 🔹 Example Flow
+## 🔹 Complete Example Flow (With Email Notifications)
+
+### Step 1: Start Conversation
+
+```json
+Request: {
+  "session_id": "user-001",
+  "text": "Book appointment"
+}
+
+Response: "Thank you! What's your email address?"
+```
+
+### Step 2: Collect Patient Email
+
+```json
+Request: {
+  "session_id": "user-001",
+  "text": "john@example.com"
+}
+
+Response: "Great! Which doctor specialization do you need?"
+```
+
+### Step 3: Select Doctor Specialization
+
+```json
+Request: {
+  "session_id": "user-001",
+  "text": "Cardiologist"
+}
+
+Response: {
+  "response": "How would you like to choose your appointment time?",
+  "options": ["earliest available", "any time", "morning", "afternoon"],
+  "follow_up": "Or specify a specific time like '10 AM'"
+}
+```
+
+### Step 4: Choose Time Preference
+
+```json
+Request: {
+  "session_id": "user-001",
+  "text": "Morning"
+}
+
+Response: "Please select a specific time or confirm a suggestion."
+```
+
+### Step 5: Confirm Appointment Time
+
+```json
+Request: {
+  "session_id": "user-001",
+  "text": "10:00"
+}
+
+Response: {
+  "response": "Your appointment is booked! A confirmation email has been sent to your address.",
+  "booking_result": {
+    "appointment_id": "APT-123",
+    "appointment": {
+      "doctor_name": "Dr. Sharma",
+      "appointment_date": "2025-04-15",
+      "appointment_time": "10:00",
+      "status": "booked"
+    }
+  }
+}
+```
+
+### 📧 Automatic Emails Sent:
+
+1. **Immediate:** Booking Confirmation
+   - Contains appointment details
+   - Confirmation ID for reference
+2. **24 Hours Before:** Reminder Email
+   - "Your appointment is tomorrow!"
+   - Encourages early arrival
+3. **1 Hour Before:** Urgent Reminder
+   - Final notification
+   - Reduces no-shows
+4. **If No-Show:** Follow-up Email
+   - Encourages rescheduling
+   - Tracks attendance
+
+---
+
+## 🔹 Example Legacy Flow (Simple)
 
 ### Step 1:
 
@@ -429,30 +624,93 @@ text.strip().lower()
 
 ---
 
+## 8. Email Notifications Not Sending
+
+### Problem:
+
+- Emails not received
+- "Connection refused" or "Authentication failed"
+
+### Solution:
+
+**Check SMTP Configuration:**
+
+```bash
+# Verify .env file exists and is configured
+cat .env
+
+# Test email sending with Python
+python -c "
+import smtplib
+try:
+    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server.starttls()
+    server.login('your-email@gmail.com', 'your-app-password')
+    print('✅ Email configuration is correct!')
+    server.quit()
+except Exception as e:
+    print(f'❌ Error: {e}')
+"
+```
+
+**Common Issues & Fixes:**
+
+| Issue                 | Cause             | Fix                                          |
+| --------------------- | ----------------- | -------------------------------------------- |
+| Authentication failed | Wrong password    | Use Gmail App Password, not regular password |
+| Connection refused    | Firewall blocking | Ensure SMTP_PORT 587 is open                 |
+| Timeout               | Network issue     | Check internet connection                    |
+| "Less secure apps"    | Gmail security    | Enable 2FA and use App Password              |
+| Email not received    | Wrong recipient   | Verify patient email is correct              |
+
+**Enable Logging:**
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+# Check logs for email errors
+```
+
+---
+
 # 🚀 Future Improvements
 
+- SMS notifications (Twilio integration)
+- Appointment cancellation/rescheduling
+- Doctor availability management
+- Patient ratings and reviews
+- Advanced analytics dashboard
 - Redis-based session storage
 - Async LLM calls
-- Slot ranking (earliest / preferred)
 - Voice interface integration
-- Frontend UI
-- Deployment (Docker + Cloud)
+- Frontend UI (React/Vue)
+- Deployment (Docker + AWS/GCP)
 
 ---
 
 # 🧠 Key Learnings
 
-- LLMs require strict validation
-- State management is essential for conversational systems
-- Backend must handle failure gracefully
-- Data consistency is critical
-- Performance optimization is architectural
+- **Conversational AI:** LLMs require strict validation and prompt engineering
+- **State Management:** Essential for multi-turn conversations
+- **Error Handling:** Backend must gracefully handle failures
+- **Email Integration:** Critical for user engagement and no-show reduction
+- **Data Persistence:** Session storage maintains conversation context
+- **Email Templates:** Beautiful, responsive HTML emails improve user trust
+- **Performance:** Optimizing LLM calls and database queries is crucial
+- **User Experience:** Confirmation and reminders significantly increase show-ups
 
 ---
 
 # 💼 Resume Highlight
 
-> Built a stateful conversational AI system integrating LLM-based intent extraction with backend workflow execution, featuring multi-turn context management, intelligent fallback handling, and real-time database-driven decision making.
+> Built a stateful conversational AI voice booking system integrating:
+>
+> - LLM-based natural language intent extraction (Llama 3)
+> - Multi-turn contextual conversation management
+> - Intelligent time preference filtering
+> - Automated email notification system (confirmation, reminders, follow-ups)
+> - Patient profile management and history tracking
+> - Real-time availability checking with race condition prevention
 
 ---
 
