@@ -7,6 +7,35 @@ The system leverages a local LLM to understand user intent, maintains conversati
 
 # 🚀 Features
 
+## ✅ Multi-Language Support (English/Hindi)
+
+- **Language Selection**: Users can choose their preferred language at the start of conversation
+  - Press `1` for English
+  - Press `2` for हिंदी (Hindi)
+
+- **Bilingual Responses**: All system responses are provided in the selected language
+- **Hindi Email Templates**: Confirmation emails are sent in Hindi for Hindi-speaking users
+- **Intelligent Prompts**: LLM receives language-specific prompts for better understanding
+
+**Example Conversation Flow:**
+
+```
+Bot: Please select your language:
+     1. English
+     2. हिंदी (Hindi)
+
+User: 2
+Bot: धन्यवाद! आपका नाम क्या है?
+
+User: राहुल कुमार
+Bot: धन्यवाद! आपका ईमेल पता क्या है?
+
+User: rahul@example.com
+Bot: बेहतरीन! आपको किस डॉक्टर की विशेषज्ञता चाहिए?
+```
+
+---
+
 ## ✅ Natural Language Understanding
 
 - Users can interact using free-form text:
@@ -447,6 +476,64 @@ Response: {
 4. **If No-Show:** Follow-up Email
    - Encourages rescheduling
    - Tracks attendance
+
+---
+
+## 🔹 Language Selection Feature
+
+### English Flow Example:
+
+```json
+// Step 1: Language Selection
+Request: {
+  "session_id": "user-en",
+  "text": "1"
+}
+
+Response: "Thank you! What's your name?"
+
+// Step 2: Name
+Request: {
+  "session_id": "user-en",
+  "text": "John Doe"
+}
+
+Response: "Thank you! What's your email address?"
+
+// Continue with normal English flow...
+```
+
+### Hindi Flow Example:
+
+```json
+// Step 1: Language Selection
+Request: {
+  "session_id": "user-hi",
+  "text": "2"
+}
+
+Response: "धन्यवाद! आपका नाम क्या है?"
+
+// Step 2: Name
+Request: {
+  "session_id": "user-hi",
+  "text": "राहुल कुमार"
+}
+
+Response: "धन्यवाद! आपका ईमेल पता क्या है?"
+
+// Step 3: Email
+Request: {
+  "session_id": "user-hi",
+  "text": "rahul@example.com"
+}
+
+Response: "बेहतरीन! आपको किस डॉक्टर की विशेषज्ञता चाहिए?"
+
+// Continue with normal Hindi flow...
+```
+
+**Note:** Hindi users will receive confirmation emails in Hindi with appropriate formatting and content.
 
 ---
 
