@@ -1,5 +1,5 @@
 from app.services.llm_service import extract_intent
-from app.services.state_manager import get_session, update_session, clear_session
+from app.services.state_manager import get_session, update_session, clear_session, get_session_lock, is_session_locked
 from app.services.booking_service import book_appointment, get_available_slots
 from app.services.email_service import send_booking_confirmation
 from app.db.models import Patient
@@ -67,6 +67,11 @@ def get_response_text(language: str, key: str) -> str:
 
 
 def handle_conversation(session_id, text, db):
+    if is_session_locked(session_id):
+        return {
+            "response": "This session is locked for staff review.",
+            "session_lock": get_session_lock(session_id)
+        }
 
     # Step 1: Get or create session
     session = get_session(session_id)
@@ -172,7 +177,9 @@ def handle_conversation(session_id, text, db):
         patient_phone=session.get("patient_phone") or None,
         specialization=session["doctor_specialization"],
         time=session["time"],
-        language=language
+        language=language,
+        consent_granted=bool(session.get("patient_phone")),
+        consent_notes="Captured during conversational booking"
     )
 
     # Step 6: Handle booking result properly (IMPORTANT FIX)

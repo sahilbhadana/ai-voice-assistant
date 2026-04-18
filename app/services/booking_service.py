@@ -1,10 +1,20 @@
 from sqlalchemy.orm import Session
-from app.db.models import Doctor, Slot, Appointment, Patient
+from app.db.models import ConsentRecord, Doctor, Slot, Appointment, Patient
 from app.services.notification_service import send_sms, build_sms_message, build_reminder_message
 from sqlalchemy import func
 from datetime import datetime, timedelta
 
-def book_appointment(db: Session, patient_name: str, patient_email: str, specialization: str, time: str, patient_phone: str = None, language: str = "en"):
+def book_appointment(
+    db: Session,
+    patient_name: str,
+    patient_email: str,
+    specialization: str,
+    time: str,
+    patient_phone: str = None,
+    language: str = "en",
+    consent_granted: bool = False,
+    consent_notes: str = None,
+):
     """
     Book an appointment for a patient.
     """
@@ -24,6 +34,17 @@ def book_appointment(db: Session, patient_name: str, patient_email: str, special
             patient.phone = patient_phone
             db.commit()
             db.refresh(patient)
+
+    consent = ConsentRecord(
+        patient_id=patient.id,
+        consent_type="booking_notifications",
+        granted=consent_granted,
+        captured_by="booking_flow",
+        source="booking",
+        notes=consent_notes
+    )
+    db.add(consent)
+    db.commit()
 
     doctor = db.query(Doctor).filter(
         func.lower(Doctor.specialization) == specialization.lower()
@@ -62,7 +83,7 @@ def book_appointment(db: Session, patient_name: str, patient_email: str, special
     db.commit()
     db.refresh(appointment)
 
-    if patient.phone and patient.phone not in ("N/A", ""):
+    if consent_granted and patient.phone and patient.phone not in ("N/A", ""):
         sms_message = build_sms_message(
             patient_name=patient_name,
             doctor_name=doctor.name,
@@ -151,6 +172,19 @@ def _find_upcoming_appointments(db, minutes_ahead: int):
     return upcoming
 
 
+def _has_notification_consent(db, patient_id: int):
+    consent = (
+        db.query(ConsentRecord)
+        .filter(
+            ConsentRecord.patient_id == patient_id,
+            ConsentRecord.consent_type == "booking_notifications"
+        )
+        .order_by(ConsentRecord.captured_at.desc())
+        .first()
+    )
+    return bool(consent and consent.granted)
+
+
 def send_upcoming_sms_reminders(db, minutes_ahead: int = 1440):
     appointments = _find_upcoming_appointments(db, minutes_ahead)
     results = []
@@ -158,6 +192,13 @@ def send_upcoming_sms_reminders(db, minutes_ahead: int = 1440):
     for appt in appointments:
         patient = db.query(Patient).filter(Patient.id == appt.patient_id).first()
         if not patient or not patient.phone or patient.phone in ("N/A", ""):
+            continue
+        if not _has_notification_consent(db, patient.id):
+            results.append({
+                "appointment_id": f"APT-{appt.id}",
+                "patient_phone": patient.phone,
+                "status": "skipped_no_consent"
+            })
             continue
 
         message = build_reminder_message(
