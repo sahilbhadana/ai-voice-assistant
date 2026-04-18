@@ -2,8 +2,56 @@ import ollama
 import json
 import re
 
-def extract_intent(text: str):
-    prompt = f"""
+def get_prompt_by_language(language: str, text: str) -> str:
+    """Return the appropriate prompt based on language preference."""
+    
+    if language == "hi":
+        # Hindi prompt
+        prompt = f"""
+        आप एक अस्पताल बुकिंग के लिए AI सहायक हैं।
+
+        सख्त निर्देश:
+        - आप केवल मान्य JSON वापस कर सकते हैं
+        - कोई स्पष्टीकरण न जोड़ें
+        - JSON के बाहर कोई टेक्स्ट न जोड़ें
+        - मार्कडाउन के रूप में न फॉर्मेट करें
+
+        JSON में ये कुंजी वापस करें:
+        - intent
+        - doctor_specialization
+        - time_preference (इनमें से एक: "earliest_available", "any_time", "morning", "afternoon", null)
+        - time
+
+        अगर मूल्य गायब है तो null इस्तेमाल करें
+
+        उदाहरण:
+
+        इनपुट: अपॉइंटमेंट बुक करें
+        आउटपुट:
+        {{"intent": "book_appointment", "doctor_specialization": null, "time_preference": null, "time": null}}
+
+        इनपुट: कार्डियोलॉजिस्ट
+        आउटपुट:
+        {{"intent": null, "doctor_specialization": "cardiologist", "time_preference": null, "time": null}}
+
+        इनपुट: सुबह
+        आउटपुट:
+        {{"intent": null, "doctor_specialization": null, "time_preference": "morning", "time": null}}
+
+        इनपुट: सबसे पहले उपलब्ध
+        आउटपुट:
+        {{"intent": null, "doctor_specialization": null, "time_preference": "earliest_available", "time": null}}
+
+        इनपुट: 10 बजे
+        आउटपुट:
+        {{"intent": null, "doctor_specialization": null, "time_preference": null, "time": "10:00"}}
+
+        अब इस से निकालें:
+        {text}
+        """
+    else:
+        # English prompt (default)
+        prompt = f"""
         You are an AI assistant for hospital booking.
 
         STRICT INSTRUCTIONS:
@@ -45,6 +93,11 @@ def extract_intent(text: str):
         Now extract from:
         {text}
         """
+    
+    return prompt
+
+def extract_intent(text: str, language: str = "en"):
+    prompt = get_prompt_by_language(language, text)
 
     response = ollama.chat(
         model="llama3",

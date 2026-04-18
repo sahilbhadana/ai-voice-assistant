@@ -62,75 +62,145 @@ def send_email(recipient_email: str, subject: str, html_content: str, text_conte
 
 def send_booking_confirmation(patient_name: str, patient_email: str, doctor_name: str, 
                               appointment_date: str, appointment_time: str, 
-                              location: str, appointment_id: str):
+                              location: str, appointment_id: str, language: str = "en"):
     """Send booking confirmation email."""
     
-    html_content = f"""
-    <html>
-        <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
-            <div style="background-color: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto;">
-                
-                <h2 style="color: #2c3e50; text-align: center;">✅ Appointment Confirmed</h2>
-                
-                <p>Hi <strong>{patient_name}</strong>,</p>
-                
-                <p>Your appointment has been successfully booked!</p>
-                
-                <div style="background-color: #ecf0f1; padding: 20px; border-left: 4px solid #3498db; margin: 20px 0;">
-                    <p><strong>📅 Date:</strong> {appointment_date}</p>
-                    <p><strong>⏰ Time:</strong> {appointment_time}</p>
-                    <p><strong>👨‍⚕️ Doctor:</strong> {doctor_name}</p>
-                    <p><strong>📍 Location:</strong> {location}</p>
-                    <p><strong>🎫 Confirmation ID:</strong> <code>{appointment_id}</code></p>
+    if language == "hi":
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
+                <div style="background-color: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto;">
+                    
+                    <h2 style="color: #2c3e50; text-align: center;">✅ अपॉइंटमेंट पुष्टि</h2>
+                    
+                    <p>नमस्ते <strong>{patient_name}</strong>,</p>
+                    
+                    <p>आपका अपॉइंटमेंट सफलतापूर्वक बुक हो गया है!</p>
+                    
+                    <div style="background-color: #ecf0f1; padding: 20px; border-left: 4px solid #3498db; margin: 20px 0;">
+                        <p><strong>📅 तारीख:</strong> {appointment_date}</p>
+                        <p><strong>⏰ समय:</strong> {appointment_time}</p>
+                        <p><strong>👨‍⚕️ डॉक्टर:</strong> {doctor_name}</p>
+                        <p><strong>📍 स्थान:</strong> {location}</p>
+                        <p><strong>🎫 पुष्टिकरण ID:</strong> <code>{appointment_id}</code></p>
+                    </div>
+                    
+                    <h4 style="color: #2c3e50;">क्या लाना है:</h4>
+                    <ul>
+                        <li>वैध पहचान पत्र</li>
+                        <li>बीमा कार्ड (यदि लागू हो)</li>
+                        <li>मेडिकल इतिहास दस्तावेज</li>
+                    </ul>
+                    
+                    <h4 style="color: #2c3e50;">रद्द या पुनर्निर्धारण करना है?</h4>
+                    <p>हमें <strong>+1-XXX-XXXX-XXXX</strong> पर कॉल करें या इस ईमेल का जवाब दें।</p>
+                    <p>⚠️ कृपया रद्दीकरण शुल्क से बचने के लिए अपने अपॉइंटमेंट से कम से कम 24 घंटे पहले रद्द करें।</p>
+                    
+                    <hr style="border: none; border-top: 1px solid #ecf0f1; margin: 20px 0;">
+                    
+                    <p style="color: #7f8c8d; font-size: 12px; text-align: center;">
+                        🏥 सिटी अस्पताल | आपातकाल: +1-XXX-XXXX-XXXX<br>
+                        यह एक स्वचालित संदेश है। कृपया संवेदनशील जानकारी के साथ जवाब न दें।
+                    </p>
                 </div>
-                
-                <h4 style="color: #2c3e50;">What to bring:</h4>
-                <ul>
-                    <li>Valid ID</li>
-                    <li>Insurance card (if applicable)</li>
-                    <li>Medical history documents</li>
-                </ul>
-                
-                <h4 style="color: #2c3e50;">Need to cancel or reschedule?</h4>
-                <p>Call us at <strong>+1-XXX-XXXX-XXXX</strong> or reply to this email.</p>
-                <p>⚠️ Please cancel at least 24 hours before your appointment to avoid cancellation fees.</p>
-                
-                <hr style="border: none; border-top: 1px solid #ecf0f1; margin: 20px 0;">
-                
-                <p style="color: #7f8c8d; font-size: 12px; text-align: center;">
-                    🏥 City Hospital | Emergency: +1-XXX-XXXX-XXXX<br>
-                    This is an automated message. Please do not reply with sensitive information.
-                </p>
-            </div>
-        </body>
-    </html>
-    """
+            </body>
+        </html>
+        """
+        
+        text_content = f"""
+        अपॉइंटमेंट पुष्टि
+        
+        नमस्ते {patient_name},
+        
+        आपका अपॉइंटमेंट सफलतापूर्वक बुक हो गया है!
+        
+        तारीख: {appointment_date}
+        समय: {appointment_time}
+        डॉक्टर: {doctor_name}
+        स्थान: {location}
+        पुष्टिकरण ID: {appointment_id}
+        
+        क्या लाना है:
+        - वैध पहचान पत्र
+        - बीमा कार्ड (यदि लागू हो)
+        - मेडिकल इतिहास दस्तावेज
+        
+        रद्द या पुनर्निर्धारण करना है?
+        हमें +1-XXX-XXXX-XXXX पर कॉल करें
+        
+        सिटी अस्पताल
+        """
+        
+        subject = "अपॉइंटमेंट पुष्टि - सिटी अस्पताल"
+    else:
+        html_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
+                <div style="background-color: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto;">
+                    
+                    <h2 style="color: #2c3e50; text-align: center;">✅ Appointment Confirmed</h2>
+                    
+                    <p>Hi <strong>{patient_name}</strong>,</p>
+                    
+                    <p>Your appointment has been successfully booked!</p>
+                    
+                    <div style="background-color: #ecf0f1; padding: 20px; border-left: 4px solid #3498db; margin: 20px 0;">
+                        <p><strong>📅 Date:</strong> {appointment_date}</p>
+                        <p><strong>⏰ Time:</strong> {appointment_time}</p>
+                        <p><strong>👨‍⚕️ Doctor:</strong> {doctor_name}</p>
+                        <p><strong>📍 Location:</strong> {location}</p>
+                        <p><strong>🎫 Confirmation ID:</strong> <code>{appointment_id}</code></p>
+                    </div>
+                    
+                    <h4 style="color: #2c3e50;">What to bring:</h4>
+                    <ul>
+                        <li>Valid ID</li>
+                        <li>Insurance card (if applicable)</li>
+                        <li>Medical history documents</li>
+                    </ul>
+                    
+                    <h4 style="color: #2c3e50;">Need to cancel or reschedule?</h4>
+                    <p>Call us at <strong>+1-XXX-XXXX-XXXX</strong> or reply to this email.</p>
+                    <p>⚠️ Please cancel at least 24 hours before your appointment to avoid cancellation fees.</p>
+                    
+                    <hr style="border: none; border-top: 1px solid #ecf0f1; margin: 20px 0;">
+                    
+                    <p style="color: #7f8c8d; font-size: 12px; text-align: center;">
+                        🏥 City Hospital | Emergency: +1-XXX-XXXX-XXXX<br>
+                        This is an automated message. Please do not reply with sensitive information.
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        text_content = f"""
+        APPOINTMENT CONFIRMED
+        
+        Hi {patient_name},
+        
+        Your appointment has been successfully booked!
+        
+        Date: {appointment_date}
+        Time: {appointment_time}
+        Doctor: {doctor_name}
+        Location: {location}
+        Confirmation ID: {appointment_id}
+        
+        What to bring:
+        - Valid ID
+        - Insurance card (if applicable)
+        - Medical history documents
+        
+        Need to cancel or reschedule?
+        Call us at +1-XXX-XXXX-XXXX
+        
+        City Hospital
+        """
+        
+        subject = "Appointment Confirmed - City Hospital"
     
-    text_content = f"""
-    APPOINTMENT CONFIRMED
-    
-    Hi {patient_name},
-    
-    Your appointment has been successfully booked!
-    
-    Date: {appointment_date}
-    Time: {appointment_time}
-    Doctor: {doctor_name}
-    Location: {location}
-    Confirmation ID: {appointment_id}
-    
-    What to bring:
-    - Valid ID
-    - Insurance card (if applicable)
-    - Medical history documents
-    
-    Need to cancel or reschedule?
-    Call us at +1-XXX-XXXX-XXXX
-    
-    City Hospital
-    """
-    
-    return send_email(patient_email, "Appointment Confirmed - City Hospital", html_content, text_content)
+    return send_email(patient_email, subject, html_content, text_content)
 
 
 def send_reminder_24h(patient_name: str, patient_email: str, doctor_name: str, 
