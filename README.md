@@ -462,7 +462,49 @@ Response: {
 }
 ```
 
-### 📧 Automatic Emails Sent:
+### � New Scheduling API Endpoints
+
+- `GET /availability?specialization=<specialization>` — returns all slots and availability for a doctor specialization
+- `GET /slots?specialization=<specialization>` — returns currently available slots only
+- `POST /history` — retrieve appointment history for a patient email
+- `POST /cancel` — cancel an existing appointment by `appointment_id`
+- `POST /reschedule` — reschedule an existing appointment by `appointment_id` and `new_time`
+
+#### Example: Availability
+
+```http
+GET /availability?specialization=cardiologist
+```
+
+#### Example: Appointment History
+
+```json
+POST /history
+{
+  "patient_email": "john@example.com"
+}
+```
+
+#### Example: Cancel Appointment
+
+```json
+POST /cancel
+{
+  "appointment_id": 123
+}
+```
+
+#### Example: Reschedule Appointment
+
+```json
+POST /reschedule
+{
+  "appointment_id": 123,
+  "new_time": "14:00"
+}
+```
+
+### �📧 Automatic Emails Sent:
 
 1. **Immediate:** Booking Confirmation
    - Contains appointment details

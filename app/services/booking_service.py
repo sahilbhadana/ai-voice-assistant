@@ -6,32 +6,19 @@ from datetime import datetime, timedelta
 def book_appointment(db: Session, patient_name: str, patient_email: str, specialization: str, time: str):
     """
     Book an appointment for a patient.
-    
-    Args:
-        db: Database session
-        patient_name: Name of patient
-        patient_email: Email of patient
-        specialization: Doctor specialization
-        time: Appointment time (HH:MM)
-    
-    Returns:
-        Dictionary with appointment details or error
     """
-
-    # Step 1: Get or create patient
     patient = db.query(Patient).filter(Patient.email == patient_email).first()
-    
+
     if not patient:
         patient = Patient(
             name=patient_name,
             email=patient_email,
-            phone="N/A"  # Phone would be captured from caller ID in real system
+            phone="N/A"
         )
         db.add(patient)
         db.commit()
         db.refresh(patient)
 
-    # Step 2: Find doctor
     doctor = db.query(Doctor).filter(
         func.lower(Doctor.specialization) == specialization.lower()
     ).first()
@@ -39,7 +26,6 @@ def book_appointment(db: Session, patient_name: str, patient_email: str, special
     if not doctor:
         return {"error": "No doctor found"}
 
-    # Step 3: Find available slot
     slot = db.query(Slot).filter(
         Slot.doctor_id == doctor.id,
         Slot.time == time,
@@ -49,11 +35,8 @@ def book_appointment(db: Session, patient_name: str, patient_email: str, special
     if not slot:
         return {"error": "No slot available"}
 
-    # Step 4: Mark slot as unavailable
     slot.is_available = False
 
-    # Step 5: Create appointment (assuming today's date + some days ahead)
-    # In real system, this would be based on selected date
     appointment_date = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
 
     appointment = Appointment(
@@ -85,6 +68,7 @@ def book_appointment(db: Session, patient_name: str, patient_email: str, special
         }
     }
 
+
 def get_available_slots(db, specialization, time_preference=None):
     doctor = db.query(Doctor).filter(
         func.lower(Doctor.specialization) == specialization.lower()
@@ -99,39 +83,126 @@ def get_available_slots(db, specialization, time_preference=None):
     ).all()
 
     slot_times = [slot.time for slot in slots]
-    
-    # Filter based on time preference
+
     if time_preference:
         slot_times = filter_slots_by_preference(slot_times, time_preference)
-    
+
     return slot_times
 
 
+def get_doctor_availability(db, specialization):
+    doctor = db.query(Doctor).filter(
+        func.lower(Doctor.specialization) == specialization.lower()
+    ).first()
+
+    if not doctor:
+        return {"error": "No doctor found"}
+
+    slots = db.query(Slot).filter(
+        Slot.doctor_id == doctor.id
+    ).all()
+
+    return {
+        "doctor_id": doctor.id,
+        "doctor_name": doctor.name,
+        "specialization": doctor.specialization,
+        "slots": [
+            {
+                "time": slot.time,
+                "is_available": slot.is_available
+            }
+            for slot in sorted(slots, key=lambda s: s.time)
+        ]
+    }
+
+
+def get_appointment_history(db, patient_email: str):
+    patient = db.query(Patient).filter(Patient.email == patient_email).first()
+    if not patient:
+        return []
+
+    appointments = db.query(Appointment).filter(Appointment.patient_id == patient.id).order_by(Appointment.created_at.desc()).all()
+    return [
+        {
+            "appointment_id": f"APT-{appt.id}",
+            "doctor_name": appt.doctor_name,
+            "appointment_date": appt.appointment_date,
+            "appointment_time": appt.appointment_time,
+            "status": appt.status,
+            "created_at": appt.created_at.isoformat()
+        }
+        for appt in appointments
+    ]
+
+
+def cancel_appointment(db, appointment_id: int):
+    appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    if not appointment:
+        return {"error": "Appointment not found"}
+
+    if appointment.status == "cancelled":
+        return {"error": "Appointment already cancelled"}
+
+    slot = db.query(Slot).filter(Slot.id == appointment.slot_id).first()
+    if slot:
+        slot.is_available = True
+
+    appointment.status = "cancelled"
+    db.commit()
+
+    return {
+        "message": "Appointment cancelled",
+        "appointment_id": f"APT-{appointment.id}",
+        "status": appointment.status
+    }
+
+
+def reschedule_appointment(db, appointment_id: int, new_time: str):
+    appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    if not appointment:
+        return {"error": "Appointment not found"}
+
+    if appointment.status == "cancelled":
+        return {"error": "Cancelled appointments cannot be rescheduled"}
+
+    current_slot = db.query(Slot).filter(Slot.id == appointment.slot_id).first()
+    new_slot = db.query(Slot).filter(
+        Slot.doctor_id == appointment.doctor_id,
+        Slot.time == new_time,
+        Slot.is_available == True
+    ).first()
+
+    if not new_slot:
+        return {"error": "Requested time slot is not available"}
+
+    if current_slot:
+        current_slot.is_available = True
+
+    new_slot.is_available = False
+    appointment.slot_id = new_slot.id
+    appointment.appointment_time = new_time
+    appointment.status = "rescheduled"
+    db.commit()
+
+    return {
+        "message": "Appointment rescheduled",
+        "appointment_id": f"APT-{appointment.id}",
+        "appointment": {
+            "doctor_name": appointment.doctor_name,
+            "appointment_date": appointment.appointment_date,
+            "appointment_time": new_time,
+            "status": appointment.status
+        }
+    }
+
+
 def filter_slots_by_preference(slots, time_preference):
-    """
-    Filter slots based on user's time preference.
-    
-    Args:
-        slots: List of time strings (e.g., ["09:00", "10:00", "14:00"])
-        time_preference: "earliest_available", "any_time", "morning", "afternoon"
-    
-    Returns:
-        Filtered list of slots
-    """
     if time_preference == "earliest_available":
-        # Return just the earliest slot
         return [slots[0]] if slots else []
-    
     elif time_preference == "any_time":
-        # Return all slots
         return slots
-    
     elif time_preference == "morning":
-        # Filter for 6:00 - 12:00
         return [s for s in slots if 6 <= int(s.split(":")[0]) < 12]
-    
     elif time_preference == "afternoon":
-        # Filter for 12:00 - 18:00
         return [s for s in slots if 12 <= int(s.split(":")[0]) < 18]
-    
     return slots

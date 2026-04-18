@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.database import SessionLocal
 from app.services.llm_service import extract_intent
@@ -18,22 +18,24 @@ def get_db():
 @router.post("/ai/book")
 def ai_book(data: dict, db: Session = Depends(get_db)):
     text = data.get("text")
+    if not text:
+        raise HTTPException(status_code=400, detail="Missing text input")
 
-    # Step 1: Extract structured data using LLM
     extracted = extract_intent(text)
-
     if "error" in extracted:
-        return {"error": "Failed to extract intent", "details": extracted}
+        raise HTTPException(status_code=400, detail={"error": "Failed to extract intent", "details": extracted})
 
-    # Step 2: Call booking logic
     result = book_appointment(
         db,
         patient_name="AI User",
+        patient_email="ai-user@example.com",
         specialization=extracted.get("doctor_specialization"),
         time=extracted.get("time")
     )
 
-    # Step 3: Return full pipeline result
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
     return {
         "input": text,
         "extracted": extracted,
