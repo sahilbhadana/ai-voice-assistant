@@ -12,6 +12,18 @@ class Patient(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    email = Column(String, unique=True, index=True)
+    role = Column(String, default="patient")
+    password_hash = Column(String)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Doctor(Base):
     __tablename__ = "doctors"
 
@@ -44,6 +56,8 @@ class Appointment(Base):
     status = Column(String, default="booked")  # booked, completed, cancelled, no_show
     created_at = Column(DateTime, default=datetime.utcnow)
     email_sent = Column(Boolean, default=False)  # Track if confirmation email sent
+    external_ehr_id = Column(String)
+    external_calendar_id = Column(String)
 
 
 class ConsentRecord(Base):
@@ -68,4 +82,21 @@ class IntegrationSyncLog(Base):
     status = Column(String)
     external_reference = Column(String)
     message = Column(Text)
+    payload = Column(Text)
+    attempts = Column(Integer, default=1)
+    next_retry_at = Column(DateTime)
     synced_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True)
+    actor_user_id = Column(Integer, ForeignKey("users.id"))
+    actor_email = Column(String)
+    actor_role = Column(String)
+    action = Column(String)
+    resource_type = Column(String)
+    resource_id = Column(String)
+    details = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)

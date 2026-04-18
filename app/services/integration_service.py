@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, timedelta
 from urllib import request
 
 from app.db.models import Appointment, IntegrationSyncLog
@@ -51,22 +52,30 @@ def sync_appointment(db, appointment_id: int, target_system: str = "all"):
     for target in targets:
         webhook_url = TARGET_WEBHOOKS.get(target)
         payload = _appointment_payload(appointment)
+        payload_json = json.dumps(payload, sort_keys=True)
 
         if not webhook_url:
             log = IntegrationSyncLog(
                 appointment_id=appointment.id,
                 target_system=target,
                 status="queued",
+                payload=payload_json,
                 message=f"{target.upper()} webhook is not configured",
+                next_retry_at=datetime.utcnow() + timedelta(minutes=15),
             )
         else:
             try:
                 status_code, body = _post_webhook(webhook_url, payload)
+                if target == "ehr":
+                    appointment.external_ehr_id = str(status_code)
+                if target == "calendar":
+                    appointment.external_calendar_id = str(status_code)
                 log = IntegrationSyncLog(
                     appointment_id=appointment.id,
                     target_system=target,
                     status="synced",
                     external_reference=str(status_code),
+                    payload=payload_json,
                     message=body[:500],
                 )
             except Exception as e:
@@ -74,7 +83,9 @@ def sync_appointment(db, appointment_id: int, target_system: str = "all"):
                     appointment_id=appointment.id,
                     target_system=target,
                     status="failed",
+                    payload=payload_json,
                     message=str(e),
+                    next_retry_at=datetime.utcnow() + timedelta(minutes=15),
                 )
 
         db.add(log)
@@ -95,6 +106,28 @@ def sync_appointment(db, appointment_id: int, target_system: str = "all"):
         "appointment_id": f"APT-{appointment.id}",
         "sync_results": results,
     }
+
+
+def retry_pending_syncs(db, limit: int = 20):
+    now = datetime.utcnow()
+    logs = (
+        db.query(IntegrationSyncLog)
+        .filter(
+            IntegrationSyncLog.status.in_(["queued", "failed"]),
+            IntegrationSyncLog.next_retry_at <= now,
+        )
+        .order_by(IntegrationSyncLog.next_retry_at.asc())
+        .limit(limit)
+        .all()
+    )
+
+    results = []
+    for log in logs:
+        result = sync_appointment(db, log.appointment_id, log.target_system)
+        log.attempts = (log.attempts or 1) + 1
+        db.commit()
+        results.append(result)
+    return results
 
 
 def get_sync_history(db, appointment_id: int):

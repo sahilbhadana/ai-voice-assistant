@@ -6,6 +6,7 @@ class BookingRequest(BaseModel):
     patient_email: str
     patient_phone: Optional[str] = None
     doctor_specialization: str
+    date: Optional[str] = None
     time: str
     consent_granted: bool = False
     consent_notes: Optional[str] = None
@@ -18,6 +19,7 @@ class CancelRequest(BaseModel):
 class RescheduleRequest(BaseModel):
     appointment_id: int
     new_time: str
+    new_date: Optional[str] = None
 
 
 class HistoryRequest(BaseModel):
@@ -52,3 +54,21 @@ class IntegrationSyncRequest(BaseModel):
 class AnalyticsRequest(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+
+
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str = "patient"
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AppointmentActionRequest(BaseModel):
+    token: str
+    new_date: Optional[str] = None
+    new_time: Optional[str] = None

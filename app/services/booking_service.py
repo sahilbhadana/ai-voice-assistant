@@ -1,6 +1,9 @@
+import os
+
 from sqlalchemy.orm import Session
 from app.db.models import ConsentRecord, Doctor, Slot, Appointment, Patient
 from app.services.notification_service import send_sms, build_sms_message, build_reminder_message
+from app.services.security_service import create_signed_token
 from sqlalchemy import func
 from datetime import datetime, timedelta
 
@@ -14,6 +17,7 @@ def book_appointment(
     language: str = "en",
     consent_granted: bool = False,
     consent_notes: str = None,
+    date: str = None,
 ):
     """
     Book an appointment for a patient.
@@ -53,18 +57,19 @@ def book_appointment(
     if not doctor:
         return {"error": "No doctor found"}
 
+    appointment_date = _normalize_appointment_date(date)
+
     slot = db.query(Slot).filter(
         Slot.doctor_id == doctor.id,
         Slot.time == time,
         Slot.is_available == True
-    ).first()
+    ).with_for_update().first()
 
     if not slot:
         return {"error": "No slot available"}
 
-    slot.is_available = False
-
-    appointment_date = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+    if _appointment_exists(db, doctor.id, appointment_date, time):
+        return {"error": "No slot available"}
 
     appointment = Appointment(
         patient_id=patient.id,
@@ -103,11 +108,12 @@ def book_appointment(
             "appointment_date": appointment_date,
             "appointment_time": time,
             "status": "booked"
-        }
+        },
+        "actions": _build_action_tokens(appointment.id)
     }
 
 
-def get_available_slots(db, specialization, time_preference=None):
+def get_available_slots(db, specialization, time_preference=None, date=None):
     doctor = db.query(Doctor).filter(
         func.lower(Doctor.specialization) == specialization.lower()
     ).first()
@@ -120,7 +126,19 @@ def get_available_slots(db, specialization, time_preference=None):
         Slot.is_available == True
     ).all()
 
-    slot_times = [slot.time for slot in slots]
+    appointment_date = _normalize_appointment_date(date) if date else None
+    booked_times = set()
+    if appointment_date:
+        booked_times = {
+            appt.appointment_time
+            for appt in db.query(Appointment).filter(
+                Appointment.doctor_id == doctor.id,
+                Appointment.appointment_date == appointment_date,
+                Appointment.status.in_(["booked", "rescheduled"])
+            ).all()
+        }
+
+    slot_times = [slot.time for slot in slots if slot.time not in booked_times]
 
     if time_preference:
         slot_times = filter_slots_by_preference(slot_times, time_preference)
@@ -128,7 +146,7 @@ def get_available_slots(db, specialization, time_preference=None):
     return slot_times
 
 
-def get_doctor_availability(db, specialization):
+def get_doctor_availability(db, specialization, date=None):
     doctor = db.query(Doctor).filter(
         func.lower(Doctor.specialization) == specialization.lower()
     ).first()
@@ -140,14 +158,27 @@ def get_doctor_availability(db, specialization):
         Slot.doctor_id == doctor.id
     ).all()
 
+    appointment_date = _normalize_appointment_date(date) if date else None
+    booked_times = set()
+    if appointment_date:
+        booked_times = {
+            appt.appointment_time
+            for appt in db.query(Appointment).filter(
+                Appointment.doctor_id == doctor.id,
+                Appointment.appointment_date == appointment_date,
+                Appointment.status.in_(["booked", "rescheduled"])
+            ).all()
+        }
+
     return {
         "doctor_id": doctor.id,
         "doctor_name": doctor.name,
         "specialization": doctor.specialization,
+        "date": appointment_date,
         "slots": [
             {
                 "time": slot.time,
-                "is_available": slot.is_available
+                "is_available": slot.is_available and slot.time not in booked_times
             }
             for slot in sorted(slots, key=lambda s: s.time)
         ]
@@ -246,10 +277,6 @@ def cancel_appointment(db, appointment_id: int):
     if appointment.status == "cancelled":
         return {"error": "Appointment already cancelled"}
 
-    slot = db.query(Slot).filter(Slot.id == appointment.slot_id).first()
-    if slot:
-        slot.is_available = True
-
     appointment.status = "cancelled"
     db.commit()
 
@@ -260,7 +287,7 @@ def cancel_appointment(db, appointment_id: int):
     }
 
 
-def reschedule_appointment(db, appointment_id: int, new_time: str):
+def reschedule_appointment(db, appointment_id: int, new_time: str, new_date: str = None):
     appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
     if not appointment:
         return {"error": "Appointment not found"}
@@ -268,21 +295,21 @@ def reschedule_appointment(db, appointment_id: int, new_time: str):
     if appointment.status == "cancelled":
         return {"error": "Cancelled appointments cannot be rescheduled"}
 
-    current_slot = db.query(Slot).filter(Slot.id == appointment.slot_id).first()
+    appointment_date = _normalize_appointment_date(new_date) if new_date else appointment.appointment_date
     new_slot = db.query(Slot).filter(
         Slot.doctor_id == appointment.doctor_id,
         Slot.time == new_time,
         Slot.is_available == True
-    ).first()
+    ).with_for_update().first()
 
     if not new_slot:
         return {"error": "Requested time slot is not available"}
 
-    if current_slot:
-        current_slot.is_available = True
+    if _appointment_exists(db, appointment.doctor_id, appointment_date, new_time, exclude_appointment_id=appointment.id):
+        return {"error": "Requested time slot is not available"}
 
-    new_slot.is_available = False
     appointment.slot_id = new_slot.id
+    appointment.appointment_date = appointment_date
     appointment.appointment_time = new_time
     appointment.status = "rescheduled"
     db.commit()
@@ -292,7 +319,7 @@ def reschedule_appointment(db, appointment_id: int, new_time: str):
         "appointment_id": f"APT-{appointment.id}",
         "appointment": {
             "doctor_name": appointment.doctor_name,
-            "appointment_date": appointment.appointment_date,
+            "appointment_date": appointment_date,
             "appointment_time": new_time,
             "status": appointment.status
         }
@@ -309,3 +336,45 @@ def filter_slots_by_preference(slots, time_preference):
     elif time_preference == "afternoon":
         return [s for s in slots if 12 <= int(s.split(":")[0]) < 18]
     return slots
+
+
+def _normalize_appointment_date(date: str = None):
+    if not date:
+        return (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+    try:
+        return datetime.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
+    except ValueError:
+        raise ValueError("Date must use YYYY-MM-DD format")
+
+
+def _appointment_exists(db, doctor_id: int, appointment_date: str, appointment_time: str, exclude_appointment_id: int = None):
+    query = db.query(Appointment).filter(
+        Appointment.doctor_id == doctor_id,
+        Appointment.appointment_date == appointment_date,
+        Appointment.appointment_time == appointment_time,
+        Appointment.status.in_(["booked", "rescheduled"])
+    )
+    if exclude_appointment_id:
+        query = query.filter(Appointment.id != exclude_appointment_id)
+    return query.first() is not None
+
+
+def _build_action_tokens(appointment_id: int):
+    ttl_seconds = 7 * 24 * 60 * 60
+    cancel_token = create_signed_token(
+        {"type": "appointment_action", "action": "cancel", "appointment_id": appointment_id},
+        ttl_seconds=ttl_seconds
+    )
+    reschedule_token = create_signed_token(
+        {"type": "appointment_action", "action": "reschedule", "appointment_id": appointment_id},
+        ttl_seconds=ttl_seconds
+    )
+    base_url = os.getenv("PUBLIC_API_BASE_URL", "").rstrip("/")
+    actions = {
+        "cancel_token": cancel_token,
+        "reschedule_token": reschedule_token,
+    }
+    if base_url:
+        actions["cancel_url"] = f"{base_url}/appointments/cancel/{cancel_token}"
+        actions["reschedule_action_url"] = f"{base_url}/appointments/action"
+    return actions
