@@ -1,848 +1,463 @@
-# 🧠 AI-Powered Conversational Appointment Booking System
-
-A **stateful, AI-driven backend system** that enables users to book medical appointments using natural language.
-The system leverages a local LLM to understand user intent, maintains conversational context across multiple turns, and executes real-time booking workflows with intelligent fallback handling.
-
----
-
-# 🚀 Features
-
-## ✅ Multi-Language Support (English/Hindi)
-
-- **Language Selection**: Users can choose their preferred language at the start of conversation
-  - Press `1` for English
-  - Press `2` for हिंदी (Hindi)
-
-- **Bilingual Responses**: All system responses are provided in the selected language
-- **Hindi Email Templates**: Confirmation emails are sent in Hindi for Hindi-speaking users
-- **Intelligent Prompts**: LLM receives language-specific prompts for better understanding
-
-**Example Conversation Flow:**
-
-```
-Bot: Please select your language:
-     1. English
-     2. हिंदी (Hindi)
-
-User: 2
-Bot: धन्यवाद! आपका नाम क्या है?
-
-User: राहुल कुमार
-Bot: धन्यवाद! आपका ईमेल पता क्या है?
-
-User: rahul@example.com
-Bot: बेहतरीन! आपको किस डॉक्टर की विशेषज्ञता चाहिए?
-```
-
----
-
-## ✅ Natural Language Understanding
-
-- Users can interact using free-form text:
-  - _“Book appointment with cardiologist at 10”_
-  - _“Cardiologist”_
-  - _“yes”_
-
-- Uses local LLM (**Llama 3 via Ollama**) to extract structured data.
-
----
-
-## ✅ Multi-Turn Conversational Memory
-
-- Maintains session-based context using `session_id`
-- Supports step-by-step interactions:
-
-  ```
-  User: Book appointment
-  Bot: Which doctor specialization?
-
-  User: Cardiologist
-  Bot: What time?
-
-  User: 10
-  Bot: Appointment booked
-  ```
-
----
-
-## ✅ Intelligent Decision Engine
-
-- Dynamically determines next step:
-  - Ask missing information
-  - Proceed to booking
-
-- Ensures smooth conversational flow
-
----
-
-## ✅ Smart Fallback Handling
-
-- If requested slot is unavailable:
-
-  ```
-  "10:00 is not available. Available slots: 11:00, 12:00"
-  ```
-
-- Allows user to:
-  - select slot → `"12"`
-  - approve suggestion → `"yes"`, `"ok"`
-
----
-
-## ✅ Intelligent Time Preference Selection
-
-- Users can choose appointment times using smart preferences:
-  - **"earliest available"** → Books the earliest available slot
-  - **"morning"** → Filters slots between 6 AM - 12 PM
-  - **"afternoon"** → Filters slots between 12 PM - 6 PM
-  - **"any time"** → Shows all available slots
-
-- Example conversation:
-
-  ```
-  User: Book appointment with cardiologist
-  Bot: Which doctor specialization do you need?
-
-  User: Cardiologist
-  Bot: How would you like to choose your appointment time?
-       Options: earliest available, any time, morning, afternoon
-
-  User: Morning
-  Bot: Please select a specific time or confirm a suggestion.
-
-  User: 10:00
-  Bot: Your appointment is booked!
-  ```
-
----
-
-## ✅ Automated Email Notifications
-
-- **Booking Confirmation** ✉️
-  - Sent immediately after appointment is booked
-  - Contains: Doctor name, date, time, location, confirmation ID
-  - Proof of booking for patient
-
-- **24-Hour Reminder** 📅
-  - Auto-sent 24 hours before appointment
-  - Reminds patient to prepare
-  - Shows all appointment details
-
-- **1-Hour Reminder** ⏰
-  - Auto-sent 1 hour before appointment
-  - Urgent reminder to leave for hospital
-  - No-show prevention
-
-- **No-Show Follow-up** 📧
-  - Auto-sent if patient doesn't show up
-  - Encourages rescheduling
-  - Tracks no-show history
-
-- **Cancellation Confirmation** ❌
-  - Sent when appointment is cancelled
-  - Releases slot back to availability
-  - Option to reschedule
-
-**Features:**
-
-- Beautiful HTML email templates
-- Plain text fallback for all email clients
-- SMTP integration with Gmail, SendGrid, AWS SES, etc.
-- Contact information captured during booking
-- Email preferences tracking
-
----
-
-## ✅ Patient Profile Management
-
-- Collects patient information during voice call:
-  - Full name
-  - Email address
-  - Phone number (from caller ID)
-
-- Stores patient profile in database
-- Tracks appointment history per patient
-- Enables personalized communication
-
----
-
-## ✅ Context-Aware Recovery
-
-- Stores suggested slots in session
-- Handles follow-up inputs intelligently
-- Continues conversation seamlessly
-
----
-
-## ✅ Database-Driven Booking
-
-- Uses **PostgreSQL** for:
-  - doctors
-  - slots
-  - appointments
-  - **patients** (NEW)
-
-- Real-time validation of availability
-- Full schedule support (10 AM - 8 PM)
-- Patient history tracking
-
----
-
-## ✅ Robust Error Handling
-
-- Prevents false success responses
-- Validates booking results before responding
-- Gracefully handles edge cases
-- Email sending failures don't block booking
-
----
-
-# 🧠 System Architecture
-
-```
-User Input
-   ↓
-FastAPI (API Layer)
-   ↓
-Conversation Service
-   ↓
-LLM (Llama 3 via Ollama)
-   ↓
-State Manager (Session Memory)
-   ↓
-Decision Engine
-   ↓
-Booking Service
-   ↓
-PostgreSQL Database
-   ↓
-Response
-```
-
----
-
-# 🧱 Tech Stack
-
-## Backend
+# AI Voice Assistant Appointment Booking API
+
+A FastAPI backend for conversational medical appointment booking. The system supports multi-turn chat, local LLM intent extraction, date-aware scheduling, patient profiles, notification consent, SMS/email notifications, staff operations, external system sync, audit logging, and demand analytics.
+
+## Features
+
+- Conversational booking flow with session memory
+- English/Hindi response support in the chat flow
+- LLM-based intent extraction with Ollama/Llama 3
+- Date-aware doctor availability and appointment booking
+- Patient profile and appointment history tracking
+- Signed bearer-token authentication
+- Role-based access control for staff operations
+- Session locking for staff review
+- Consent capture for booking notifications
+- Email confirmations and Twilio SMS reminders
+- Signed appointment action tokens for cancel/reschedule flows
+- EHR/calendar webhook sync with retry metadata
+- Demand analytics and reporting
+- Audit logs for sensitive staff actions
+- Alembic migration scaffolding
+- Optional background SMS reminder scheduler
+
+## Tech Stack
 
 - FastAPI
 - Python
-
-## AI / NLP
-
-- Ollama
-- Llama 3
-
-## Database
-
 - PostgreSQL
-
-## ORM
-
 - SQLAlchemy
+- Alembic
+- Pydantic
+- Twilio
+- Ollama/Llama 3
 
----
+## Setup
 
-# ⚙️ Installation & Setup
-
-## 1. Clone Repository
+### 1. Clone And Install
 
 ```bash
 git clone <your-repo-url>
 cd ai-voice-assistant
-```
-
----
-
-## 2. Create Virtual Environment
-
-```bash
 python -m venv venv
-venv\Scripts\activate   # Windows
-```
-
----
-
-## 3. Install Dependencies
-
-```bash
+venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
----
+### 2. Configure Environment
 
-## 4. Setup PostgreSQL
-
-- Create database
-- Update connection string in `database.py`:
-
-```python
-DATABASE_URL = "postgresql://user:password@localhost:5432/dbname"
-```
-
----
-
-## 5. Configure Email Notifications
-
-Create `.env` file in project root:
+Copy the example file:
 
 ```bash
-# Copy the example
 cp .env.example .env
-
-# Edit .env with your email credentials
 ```
 
-**Email Configuration Options:**
+Important environment variables:
 
-### Option A: Gmail (Recommended for Testing)
+```bash
+DATABASE_URL=postgresql://postgres:password@localhost/hospital_ai
+APP_SECRET_KEY=replace-with-a-long-random-secret
+AUTH_TOKEN_TTL_SECONDS=86400
+PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 
-```
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SENDER_EMAIL=your-email@gmail.com
-SENDER_PASSWORD=your-app-password  # Use App Password, not regular password
+SENDER_PASSWORD=your-app-password
 SENDER_NAME=City Hospital
+
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_PHONE_NUMBER=+1234567890
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+
+EHR_WEBHOOK_URL=
+CALENDAR_WEBHOOK_URL=
+
+ENABLE_REMINDER_SCHEDULER=false
+REMINDER_SCHEDULER_INTERVAL_SECONDS=300
+REMINDER_WINDOW_MINUTES=1440
 ```
 
-**Setup Gmail App Password:**
+### 3. Database
 
-1. Enable 2-Factor Authentication on Gmail
-2. Go to myaccount.google.com → Security → App passwords
-3. Select "Mail" and "Windows Computer"
-4. Copy the 16-character password
-5. Use it as `SENDER_PASSWORD` in `.env`
+For a new local database, the app still runs `Base.metadata.create_all()` on startup.
 
-### Option B: SendGrid
-
-```
-SMTP_SERVER=smtp.sendgrid.net
-SMTP_PORT=587
-SENDER_EMAIL=apikey  # Keep as "apikey"
-SENDER_PASSWORD=SG.xxxxx...  # Your SendGrid API key
-SENDER_NAME=City Hospital
-```
-
-### Option C: AWS SES
-
-```
-SMTP_SERVER=email-smtp.region.amazonaws.com
-SMTP_PORT=587
-SENDER_EMAIL=your-verified-email@domain.com
-SENDER_PASSWORD=your-smtp-password
-SENDER_NAME=City Hospital
-```
-
----
-
-## 6. Run Migrations / Create Tables
+For existing databases or production-style schema changes, use Alembic:
 
 ```bash
-uvicorn app.main:app --reload
+alembic upgrade head
 ```
 
----
-
-## 7. Seed Database
-
-```bash
-python -m app.db.seed
-```
-
----
-
-## 8. Run Ollama
+### 4. Start Ollama
 
 ```bash
 ollama run llama3
 ```
 
----
-
-## 9. Start Server
+### 5. Start API
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
----
+API docs:
 
-# 🧪 API Usage
-
-## Base URL
-
-```
+```text
 http://127.0.0.1:8000/docs
 ```
 
----
+## Authentication
 
-## 🔹 Endpoint: `/chat`
+The API uses signed bearer tokens. Passwords are stored with PBKDF2 hashes.
 
-### Request:
+Roles:
+
+- `admin`
+- `receptionist`
+- `doctor`
+- `patient`
+- `analyst`
+
+Bootstrap behavior:
+
+- If no users exist, `POST /auth/register` can create the first user with any valid role.
+- After users exist, public registration can only create `patient` users.
+- Staff users must be created by an authenticated admin through `POST /auth/users`.
+
+### Register
+
+```json
+POST /auth/register
+{
+  "name": "Sahil",
+  "email": "sahil@example.com",
+  "password": "strong-password",
+  "role": "admin"
+}
+```
+
+### Login
+
+```json
+POST /auth/login
+{
+  "email": "sahil@example.com",
+  "password": "strong-password"
+}
+```
+
+Use the returned token:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+### Current User
+
+```http
+GET /auth/me
+Authorization: Bearer <access_token>
+```
+
+## Booking
+
+### Book Appointment
+
+Requires role: `admin`, `receptionist`, or `patient`.
+
+```json
+POST /book
+Authorization: Bearer <access_token>
+{
+  "patient_name": "John Doe",
+  "patient_email": "john@example.com",
+  "patient_phone": "+15551234567",
+  "doctor_specialization": "cardiologist",
+  "date": "2026-04-22",
+  "time": "10:00",
+  "consent_granted": true,
+  "consent_notes": "Patient agreed to SMS reminders"
+}
+```
+
+Response includes signed action tokens:
 
 ```json
 {
-  "session_id": "user1",
-  "text": "Book cardiologist at 10"
-}
-```
-
----
-
-## 🔹 Complete Example Flow (With Email Notifications)
-
-### Step 1: Start Conversation
-
-```json
-Request: {
-  "session_id": "user-001",
-  "text": "Book appointment"
-}
-
-Response: "Thank you! What's your email address?"
-```
-
-### Step 2: Collect Patient Email
-
-```json
-Request: {
-  "session_id": "user-001",
-  "text": "john@example.com"
-}
-
-Response: "Great! Which doctor specialization do you need?"
-```
-
-### Step 3: Select Doctor Specialization
-
-```json
-Request: {
-  "session_id": "user-001",
-  "text": "Cardiologist"
-}
-
-Response: {
-  "response": "How would you like to choose your appointment time?",
-  "options": ["earliest available", "any time", "morning", "afternoon"],
-  "follow_up": "Or specify a specific time like '10 AM'"
-}
-```
-
-### Step 4: Choose Time Preference
-
-```json
-Request: {
-  "session_id": "user-001",
-  "text": "Morning"
-}
-
-Response: "Please select a specific time or confirm a suggestion."
-```
-
-### Step 5: Confirm Appointment Time
-
-```json
-Request: {
-  "session_id": "user-001",
-  "text": "10:00"
-}
-
-Response: {
-  "response": "Your appointment is booked! A confirmation email has been sent to your address.",
-  "booking_result": {
-    "appointment_id": "APT-123",
-    "appointment": {
-      "doctor_name": "Dr. Sharma",
-      "appointment_date": "2025-04-15",
-      "appointment_time": "10:00",
-      "status": "booked"
-    }
+  "message": "Appointment booked",
+  "appointment_id": "APT-123",
+  "appointment": {
+    "id": 123,
+    "doctor_name": "Dr. Sharma",
+    "appointment_date": "2026-04-22",
+    "appointment_time": "10:00",
+    "status": "booked"
+  },
+  "actions": {
+    "cancel_token": "...",
+    "reschedule_token": "..."
   }
 }
 ```
 
-### � New Scheduling API Endpoints
-
-- `GET /availability?specialization=<specialization>` — returns all slots and availability for a doctor specialization
-- `GET /slots?specialization=<specialization>` — returns currently available slots only
-- `POST /history` — retrieve appointment history for a patient email
-- `POST /cancel` — cancel an existing appointment by `appointment_id`
-- `POST /reschedule` — reschedule an existing appointment by `appointment_id` and `new_time`
-
-#### Example: Availability
+### Availability
 
 ```http
-GET /availability?specialization=cardiologist
+GET /availability?specialization=cardiologist&date=2026-04-22
 ```
 
-#### Example: Appointment History
+### Slots
+
+```http
+GET /slots?specialization=cardiologist&date=2026-04-22
+```
+
+### History
+
+Requires role: `admin`, `receptionist`, `doctor`, or `patient`.
 
 ```json
 POST /history
+Authorization: Bearer <access_token>
 {
   "patient_email": "john@example.com"
 }
 ```
 
-#### Example: Cancel Appointment
+### Cancel
+
+Requires role: `admin`, `receptionist`, or `doctor`.
 
 ```json
 POST /cancel
+Authorization: Bearer <access_token>
 {
   "appointment_id": 123
 }
 ```
 
-#### Example: Reschedule Appointment
+### Reschedule
+
+Requires role: `admin`, `receptionist`, or `doctor`.
 
 ```json
 POST /reschedule
+Authorization: Bearer <access_token>
 {
   "appointment_id": 123,
+  "new_date": "2026-04-23",
   "new_time": "14:00"
 }
 ```
 
-### �📧 Automatic Emails Sent:
+### Signed Appointment Actions
 
-1. **Immediate:** Booking Confirmation
-   - Contains appointment details
-   - Confirmation ID for reference
-2. **24 Hours Before:** Reminder Email
-   - "Your appointment is tomorrow!"
-   - Encourages early arrival
-3. **1 Hour Before:** Urgent Reminder
-   - Final notification
-   - Reduces no-shows
-4. **If No-Show:** Follow-up Email
-   - Encourages rescheduling
-   - Tracks attendance
+Patients can use signed tokens from the booking response.
 
----
+Cancel with a token:
 
-## 🔹 Language Selection Feature
+```http
+GET /appointments/cancel/{token}
+```
 
-### English Flow Example:
+Reschedule with a token:
 
 ```json
-// Step 1: Language Selection
-Request: {
-  "session_id": "user-en",
-  "text": "1"
+POST /appointments/action
+{
+  "token": "<reschedule_token>",
+  "new_date": "2026-04-23",
+  "new_time": "14:00"
 }
+```
 
-Response: "Thank you! What's your name?"
+## Conversational Chat
 
-// Step 2: Name
-Request: {
-  "session_id": "user-en",
-  "text": "John Doe"
+The `/chat` route keeps an in-memory session and walks the patient through language selection, name, email, phone, specialization, and time selection.
+
+```json
+POST /chat
+{
+  "session_id": "user-001",
+  "text": "Book appointment"
 }
-
-Response: "Thank you! What's your email address?"
-
-// Continue with normal English flow...
 ```
 
-### Hindi Flow Example:
+Session locks can pause a conversation while staff reviews it.
+
+## Consent Capture
+
+Notification consent is recorded during booking and can also be managed directly.
+
+Requires role: `admin`, `receptionist`, or `doctor`.
 
 ```json
-// Step 1: Language Selection
-Request: {
-  "session_id": "user-hi",
-  "text": "2"
+POST /consents
+Authorization: Bearer <access_token>
+{
+  "patient_email": "john@example.com",
+  "consent_type": "booking_notifications",
+  "granted": true,
+  "captured_by": "front-desk",
+  "source": "phone",
+  "notes": "Patient agreed verbally"
 }
+```
 
-Response: "धन्यवाद! आपका नाम क्या है?"
+View consent history:
 
-// Step 2: Name
-Request: {
-  "session_id": "user-hi",
-  "text": "राहुल कुमार"
+```http
+GET /consents/john@example.com
+Authorization: Bearer <access_token>
+```
+
+SMS reminders check the latest `booking_notifications` consent before sending.
+
+## Session Locking
+
+Requires role: `admin`, `receptionist`, or `doctor`.
+
+```json
+POST /sessions/lock
+Authorization: Bearer <access_token>
+{
+  "session_id": "user-001",
+  "locked_by": "front-desk",
+  "reason": "Manual review"
 }
-
-Response: "धन्यवाद! आपका ईमेल पता क्या है?"
-
-// Step 3: Email
-Request: {
-  "session_id": "user-hi",
-  "text": "rahul@example.com"
-}
-
-Response: "बेहतरीन! आपको किस डॉक्टर की विशेषज्ञता चाहिए?"
-
-// Continue with normal Hindi flow...
 ```
 
-**Note:** Hindi users will receive confirmation emails in Hindi with appropriate formatting and content.
-
----
-
-## 🔹 Example Legacy Flow (Simple)
-
-### Step 1:
-
-```json
-"Book appointment"
+```http
+GET /sessions/user-001/lock
+POST /sessions/user-001/unlock
 ```
 
-→
+When a session is locked, the chat route returns a lock message instead of mutating session state.
 
-```json
-"Which doctor specialization do you need?"
+## Notifications
+
+### Manual SMS Reminder Dispatch
+
+Requires role: `admin` or `receptionist`.
+
+```http
+POST /notifications/reminders?minutes_ahead=1440
+Authorization: Bearer <access_token>
 ```
 
----
+### Optional Scheduler
 
-### Step 2:
-
-```json
-"Cardiologist"
-```
-
-→
-
-```json
-"What time would you prefer?"
-```
-
----
-
-### Step 3:
-
-```json
-"10"
-```
-
-→
-
-```json
-"Your appointment is booked!"
-```
-
----
-
-## 🔹 Fallback Example
-
-```json
-"Book cardiologist at 10"
-```
-
-→
-
-```json
-"10:00 is not available. Available slots: 11:00, 12:00"
-```
-
----
-
-### Follow-up:
-
-```json
-"yes"
-```
-
-→
-
-```json
-"Your appointment is booked!"
-```
-
----
-
-# 🧠 Key Challenges & Solutions
-
----
-
-## 1. LLM Output Unreliable
-
-### Problem:
-
-- Non-JSON output
-- Hallucinated fields
-
-### Solution:
-
-- Strict prompt engineering
-- JSON validation + fallback parsing
-
----
-
-## 2. Stateless API Limitation
-
-### Problem:
-
-- Conversation context lost
-
-### Solution:
-
-- Session-based memory using in-memory store
-
----
-
-## 3. Incorrect System Responses
-
-### Problem:
-
-- False success messages
-
-### Solution:
-
-- Explicit error handling in booking pipeline
-
----
-
-## 4. Poor UX on Failure
-
-### Problem:
-
-```
-"No slot available"
-```
-
-### Solution:
-
-- Suggest alternative slots dynamically
-
----
-
-## 5. No Contextual Follow-up
-
-### Problem:
-
-- System didn’t understand:
-
-```
-"12"
-```
-
-### Solution:
-
-- Stored `suggested_slots`
-- Context-aware mapping
-
----
-
-## 6. Natural Language Variations
-
-### Problem:
-
-```
-"Yes" vs "yes" vs "OK"
-```
-
-### Solution:
-
-```python
-text.strip().lower()
-```
-
----
-
-## 7. Performance Constraints
-
-### Problem:
-
-- Slow LLM responses
-
-### Solution:
-
-- Identified bottleneck
-- Designed optimization strategies (future improvements)
-
----
-
-## 8. Email Notifications Not Sending
-
-### Problem:
-
-- Emails not received
-- "Connection refused" or "Authentication failed"
-
-### Solution:
-
-**Check SMTP Configuration:**
+Enable automatic reminder scans:
 
 ```bash
-# Verify .env file exists and is configured
-cat .env
-
-# Test email sending with Python
-python -c "
-import smtplib
-try:
-    server = smtplib.SMTP('smtp.gmail.com', 587)
-    server.starttls()
-    server.login('your-email@gmail.com', 'your-app-password')
-    print('✅ Email configuration is correct!')
-    server.quit()
-except Exception as e:
-    print(f'❌ Error: {e}')
-"
+ENABLE_REMINDER_SCHEDULER=true
+REMINDER_SCHEDULER_INTERVAL_SECONDS=300
+REMINDER_WINDOW_MINUTES=1440
 ```
 
-**Common Issues & Fixes:**
+The scheduler runs in a background daemon thread on app startup.
 
-| Issue                 | Cause             | Fix                                          |
-| --------------------- | ----------------- | -------------------------------------------- |
-| Authentication failed | Wrong password    | Use Gmail App Password, not regular password |
-| Connection refused    | Firewall blocking | Ensure SMTP_PORT 587 is open                 |
-| Timeout               | Network issue     | Check internet connection                    |
-| "Less secure apps"    | Gmail security    | Enable 2FA and use App Password              |
-| Email not received    | Wrong recipient   | Verify patient email is correct              |
+## EHR And Calendar Integration
 
-**Enable Logging:**
+The integration service can sync appointments to configured webhooks.
 
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-# Check logs for email errors
+Set:
+
+```bash
+EHR_WEBHOOK_URL=https://ehr.example.com/webhook
+CALENDAR_WEBHOOK_URL=https://calendar.example.com/webhook
 ```
 
----
+Sync appointment:
 
-# 🚀 Future Improvements
+```json
+POST /integrations/sync
+Authorization: Bearer <access_token>
+{
+  "appointment_id": 123,
+  "target_system": "all"
+}
+```
 
-- SMS notifications (Twilio integration)
-- Appointment cancellation/rescheduling
-- Doctor availability management
-- Patient ratings and reviews
-- Advanced analytics dashboard
-- Redis-based session storage
-- Async LLM calls
-- Voice interface integration
-- Frontend UI (React/Vue)
-- Deployment (Docker + AWS/GCP)
+Valid targets:
 
----
+- `all`
+- `ehr`
+- `calendar`
 
-# 🧠 Key Learnings
+View sync history:
 
-- **Conversational AI:** LLMs require strict validation and prompt engineering
-- **State Management:** Essential for multi-turn conversations
-- **Error Handling:** Backend must gracefully handle failures
-- **Email Integration:** Critical for user engagement and no-show reduction
-- **Data Persistence:** Session storage maintains conversation context
-- **Email Templates:** Beautiful, responsive HTML emails improve user trust
-- **Performance:** Optimizing LLM calls and database queries is crucial
-- **User Experience:** Confirmation and reminders significantly increase show-ups
+```http
+GET /integrations/123/history
+Authorization: Bearer <access_token>
+```
 
----
+Retry queued or failed syncs:
 
-# 💼 Resume Highlight
+```http
+POST /integrations/retry?limit=20
+Authorization: Bearer <access_token>
+```
 
-> Built a stateful conversational AI voice booking system integrating:
->
-> - LLM-based natural language intent extraction (Llama 3)
-> - Multi-turn contextual conversation management
-> - Intelligent time preference filtering
-> - Automated email notification system (confirmation, reminders, follow-ups)
-> - Patient profile management and history tracking
-> - Real-time availability checking with race condition prevention
+## Analytics
 
----
+Requires role: `admin` or `analyst`.
 
-# 📌 Author
+```json
+POST /analytics/demand
+Authorization: Bearer <access_token>
+{
+  "start_date": "2026-04-01",
+  "end_date": "2026-04-30"
+}
+```
 
-**Sahil Bhadana**
+The report includes:
+
+- total appointments
+- appointments by status
+- appointments by day
+- appointments by doctor
+- demand by specialization
+- slot utilization percentage
+
+## Audit Logs
+
+Requires role: `admin`.
+
+```http
+GET /audit/logs?limit=100
+Authorization: Bearer <access_token>
+```
+
+Audited actions include booking, history access, cancel/reschedule, consent access, session locks, integration syncs, analytics access, and audit log reads.
+
+## AI Booking Endpoints
+
+Extract intent:
+
+```http
+POST /ai/extract
+```
+
+Book from natural language:
+
+```http
+POST /ai/book
+```
+
+These endpoints use the LLM service to parse user text into booking fields.
+
+## Operational Notes
+
+- Use `APP_SECRET_KEY` with a long random value before real usage.
+- Use Alembic for existing databases because `create_all()` does not add new columns to existing tables.
+- Configure Twilio credentials before enabling SMS sends.
+- Configure SMTP credentials before relying on email confirmations.
+- Keep `ENABLE_REMINDER_SCHEDULER=false` during local testing unless you intentionally want background reminder scans.
+- The in-memory session store is simple and resets when the app restarts. Redis would be the next step for production sessions.
+
+## Author
+
+Sahil Bhadana
