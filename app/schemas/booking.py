@@ -1,8 +1,10 @@
 from pydantic import BaseModel
+from typing import Optional
 
 class BookingRequest(BaseModel):
     patient_name: str
     patient_email: str
+    patient_phone: Optional[str] = None
     doctor_specialization: str
     time: str
 

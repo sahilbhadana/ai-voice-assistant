@@ -8,7 +8,8 @@ from app.services.booking_service import (
     get_doctor_availability,
     get_appointment_history,
     cancel_appointment,
-    reschedule_appointment
+    reschedule_appointment,
+    send_upcoming_sms_reminders
 )
 
 router = APIRouter()
@@ -28,7 +29,8 @@ def book(req: BookingRequest, db: Session = Depends(get_db)):
         req.patient_name,
         req.patient_email,
         req.doctor_specialization,
-        req.time
+        req.time,
+        patient_phone=req.patient_phone
     )
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
@@ -67,3 +69,16 @@ def reschedule(req: RescheduleRequest, db: Session = Depends(get_db)):
 @router.get("/slots")
 def slots(specialization: str = Query(...), db: Session = Depends(get_db)):
     return {"available_slots": get_available_slots(db, specialization)}
+
+
+@router.post("/notifications/reminders")
+def reminders(
+    minutes_ahead: int = Query(1440, ge=1, description="Send reminders for appointments in the next X minutes"),
+    db: Session = Depends(get_db)
+):
+    results = send_upcoming_sms_reminders(db, minutes_ahead)
+    return {
+        "message": "SMS reminders dispatched",
+        "reminders_sent": len(results),
+        "details": results
+    }

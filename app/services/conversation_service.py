@@ -6,6 +6,21 @@ from app.db.models import Patient
 from datetime import datetime
 
 
+def _normalize_phone_number(text: str):
+    phone = text.strip().replace(" ", "").replace("-", "")
+    if phone.lower() in ("skip", "no", "none", "n/a"):
+        return None
+    return phone
+
+
+def _is_valid_phone_number(phone: str) -> bool:
+    if not phone:
+        return True
+
+    digits = phone[1:] if phone.startswith("+") else phone
+    return digits.isdigit() and 10 <= len(digits) <= 15
+
+
 def get_response_text(language: str, key: str) -> str:
     """Get response text based on language preference."""
 
@@ -16,6 +31,8 @@ def get_response_text(language: str, key: str) -> str:
             "name_prompt": "Thank you! What's your name?",
             "email_prompt": "Thank you! What's your email address?",
             "invalid_email": "Please provide a valid email address.",
+            "phone_prompt": "Great! What's your phone number for SMS reminders?",
+            "invalid_phone": "Please provide a valid phone number with country code.",
             "specialization_prompt": "Great! Which doctor specialization do you need?",
             "time_preference_prompt": "How would you like to choose your appointment time?",
             "time_options": ["earliest available", "any time", "morning", "afternoon"],
@@ -32,6 +49,8 @@ def get_response_text(language: str, key: str) -> str:
             "name_prompt": "धन्यवाद! आपका नाम क्या है?",
             "email_prompt": "धन्यवाद! आपका ईमेल पता क्या है?",
             "invalid_email": "कृपया एक वैध ईमेल पता प्रदान करें।",
+            "phone_prompt": "बेहतरीन! एसएमएस रिमाइंडर्स के लिए आपका फोन नंबर क्या है?",
+            "invalid_phone": "कृपया +91 से शुरू होने वाला वैध फोन नंबर प्रदान करें।",
             "specialization_prompt": "बेहतरीन! आपको किस डॉक्टर की विशेषज्ञता चाहिए?",
             "time_preference_prompt": "आप अपना अपॉइंटमेंट समय कैसे चुनना चाहेंगे?",
             "time_options": ["सबसे पहले उपलब्ध", "कोई भी समय", "सुबह", "दोपहर"],
@@ -89,6 +108,15 @@ def handle_conversation(session_id, text, db):
 
         session["patient_email"] = patient_email
         update_session(session_id, {"patient_email": patient_email})
+        return {"response": get_response_text(language, "phone_prompt")}
+
+    if session.get("patient_phone") is None:
+        patient_phone = _normalize_phone_number(text)
+        if patient_phone and not _is_valid_phone_number(patient_phone):
+            return {"response": get_response_text(language, "invalid_phone")}
+
+        session["patient_phone"] = patient_phone or ""
+        update_session(session_id, {"patient_phone": patient_phone or ""})
         return {"response": get_response_text(language, "specialization_prompt")}
 
     # Step 2b: Normalize specialization
@@ -141,8 +169,10 @@ def handle_conversation(session_id, text, db):
         db,
         patient_name=session["patient_name"],
         patient_email=session["patient_email"],
+        patient_phone=session.get("patient_phone") or None,
         specialization=session["doctor_specialization"],
-        time=session["time"]
+        time=session["time"],
+        language=language
     )
 
     # Step 6: Handle booking result properly (IMPORTANT FIX)

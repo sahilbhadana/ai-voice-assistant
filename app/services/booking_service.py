@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session
 from app.db.models import Doctor, Slot, Appointment, Patient
+from app.services.notification_service import send_sms, build_sms_message, build_reminder_message
 from sqlalchemy import func
 from datetime import datetime, timedelta
 
-def book_appointment(db: Session, patient_name: str, patient_email: str, specialization: str, time: str):
+def book_appointment(db: Session, patient_name: str, patient_email: str, specialization: str, time: str, patient_phone: str = None, language: str = "en"):
     """
     Book an appointment for a patient.
     """
@@ -13,11 +14,16 @@ def book_appointment(db: Session, patient_name: str, patient_email: str, special
         patient = Patient(
             name=patient_name,
             email=patient_email,
-            phone="N/A"
+            phone=patient_phone
         )
         db.add(patient)
         db.commit()
         db.refresh(patient)
+    else:
+        if patient_phone and patient.phone in (None, "N/A", ""):
+            patient.phone = patient_phone
+            db.commit()
+            db.refresh(patient)
 
     doctor = db.query(Doctor).filter(
         func.lower(Doctor.specialization) == specialization.lower()
@@ -55,6 +61,17 @@ def book_appointment(db: Session, patient_name: str, patient_email: str, special
     db.add(appointment)
     db.commit()
     db.refresh(appointment)
+
+    if patient.phone and patient.phone not in ("N/A", ""):
+        sms_message = build_sms_message(
+            patient_name=patient_name,
+            doctor_name=doctor.name,
+            appointment_date=appointment_date,
+            appointment_time=time,
+            appointment_id=f"APT-{appointment.id}",
+            language=language
+        )
+        send_sms(patient.phone, sms_message)
 
     return {
         "message": "Appointment booked",
@@ -114,6 +131,51 @@ def get_doctor_availability(db, specialization):
             for slot in sorted(slots, key=lambda s: s.time)
         ]
     }
+
+
+def _find_upcoming_appointments(db, minutes_ahead: int):
+    now = datetime.now()
+    cutoff = now + timedelta(minutes=minutes_ahead)
+    appointments = db.query(Appointment).filter(Appointment.status == "booked").all()
+
+    upcoming = []
+    for appt in appointments:
+        try:
+            appointment_at = datetime.strptime(f"{appt.appointment_date} {appt.appointment_time}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+
+        if now <= appointment_at <= cutoff:
+            upcoming.append(appt)
+
+    return upcoming
+
+
+def send_upcoming_sms_reminders(db, minutes_ahead: int = 1440):
+    appointments = _find_upcoming_appointments(db, minutes_ahead)
+    results = []
+
+    for appt in appointments:
+        patient = db.query(Patient).filter(Patient.id == appt.patient_id).first()
+        if not patient or not patient.phone or patient.phone in ("N/A", ""):
+            continue
+
+        message = build_reminder_message(
+            patient_name=appt.patient_name,
+            doctor_name=appt.doctor_name,
+            appointment_date=appt.appointment_date,
+            appointment_time=appt.appointment_time,
+            appointment_id=f"APT-{appt.id}",
+            hours_ahead=minutes_ahead // 60
+        )
+        sent = send_sms(patient.phone, message)
+        results.append({
+            "appointment_id": f"APT-{appt.id}",
+            "patient_phone": patient.phone,
+            "status": "sent" if sent else "failed"
+        })
+
+    return results
 
 
 def get_appointment_history(db, patient_email: str):
