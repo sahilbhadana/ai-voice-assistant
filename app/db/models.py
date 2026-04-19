@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, Index
 from datetime import datetime
 from .database import Base
 
@@ -58,6 +58,16 @@ class Appointment(Base):
     email_sent = Column(Boolean, default=False)  # Track if confirmation email sent
     external_ehr_id = Column(String)
     external_calendar_id = Column(String)
+    __table_args__ = (
+        Index(
+            "uq_active_appointment_slot",
+            "doctor_id",
+            "appointment_date",
+            "appointment_time",
+            unique=True,
+            postgresql_where=status.in_(["booked", "rescheduled"]),
+        ),
+    )
 
 
 class ConsentRecord(Base):

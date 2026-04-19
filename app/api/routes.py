@@ -48,6 +48,8 @@ def book(
     db: Session = Depends(get_db),
     user=Depends(require_roles("admin", "receptionist", "patient"))
 ):
+    if user.role == "patient" and req.patient_email.lower() != user.email.lower():
+        raise HTTPException(status_code=403, detail="Patients can only book appointments for their own account")
     try:
         result = book_appointment(
             db,
@@ -124,6 +126,8 @@ def history(
     db: Session = Depends(get_db),
     user=Depends(require_roles("admin", "receptionist", "doctor", "patient"))
 ):
+    if user.role == "patient" and req.patient_email.lower() != user.email.lower():
+        raise HTTPException(status_code=403, detail="Patients can only view their own appointment history")
     write_audit_log(db, user, "view_appointment_history", "patient", req.patient_email)
     return {"appointments": get_appointment_history(db, req.patient_email)}
 

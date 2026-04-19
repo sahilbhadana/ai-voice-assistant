@@ -5,6 +5,7 @@ from app.db.models import ConsentRecord, Doctor, Slot, Appointment, Patient
 from app.services.notification_service import send_sms, build_sms_message, build_reminder_message
 from app.services.security_service import create_signed_token
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
 
 def book_appointment(
@@ -85,7 +86,11 @@ def book_appointment(
     )
 
     db.add(appointment)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return {"error": "No slot available"}
     db.refresh(appointment)
 
     if consent_granted and patient.phone and patient.phone not in ("N/A", ""):
@@ -312,7 +317,11 @@ def reschedule_appointment(db, appointment_id: int, new_time: str, new_date: str
     appointment.appointment_date = appointment_date
     appointment.appointment_time = new_time
     appointment.status = "rescheduled"
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return {"error": "Requested time slot is not available"}
 
     return {
         "message": "Appointment rescheduled",
